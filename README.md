@@ -3,11 +3,16 @@ For people living in South Korea and often buy items on [Gmarket](http://gmarket
 
 ### How
 + Accept `<username>` and `<password>` as input.
-+ Use [Mailinator](https://www.mailinator.com/) to register an email of `<username>`@`mailinator.com`
++ Use [YOPMail](https://www.yopmail.com/) to register an email of `<username>`@`yopmail.com`
 + Register Gmarket account with `<username>` & `<password>` as login credentials.
 + Activate the account via the mailinator email.
 + Receive 30% coupon for the account.
 + That's it. Enjoy shopping on Gmarket with 30% discount!
+
+### Install
+```
+conda env create -f environment.yml
+```
 
 ### Build
 ```
