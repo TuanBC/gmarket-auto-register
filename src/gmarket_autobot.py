@@ -1,30 +1,32 @@
 #! /usr/bin/python3
 
-import time
 import argparse
+import multiprocessing
+import sys
+import time
+from queue import Queue
+from threading import Thread
 
+from chromedriver_py import binary_path
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from threading import Thread
-import multiprocessing
-from queue import Queue
-
+from selenium.webdriver.support.ui import WebDriverWait
 
 GLOBAL_GMARKET_HOME_URL = "http://global.gmarket.co.kr/Home/Main"
-GLOBAL_GMARKET_REGIS_URL = (
-    "https://gmemberssl.gmarket.co.kr/Registration/MemberRegistration"
-)
+GLOBAL_GMARKET_REGIS_URL = "https://gmemberssl.gmarket.co.kr/Registration/MemberRegistration"
 MAILINATOR_HOME_URL = "https://www.mailinator.com"
 YOPMAIL_URL = "https://yopmail.com"
-
+service_object = Service(binary_path)
 
 def create_opt_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("username", help="username")
-    parser.add_argument("password", help="password")
+    parser.add_argument("--username", help="username")
+    parser.add_argument("--password", help="password")
+    parser.add_argument("--start", help="start index", type=int)
+    parser.add_argument("--end", help="end index", type=int)
     return parser
 
 
@@ -33,7 +35,7 @@ def create_web_driver(url):
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
-    driver = webdriver.Chrome(options=chrome_options)
+    driver = webdriver.Chrome(options=chrome_options, service=service_object)
     driver.get(url)
     return driver
 
@@ -63,36 +65,7 @@ def find_element_no_except(driver, by, key):
     except:
         pass
     return element
-
-
-def mailbox(driver, username):
-    print("Open Mailinator")
-
-    # Fill username
-    print("Fill username")
-    id_input = driver.find_element(By.ID, "addOverlay")
-    id_input.clear()
-    id_input.send_keys(username)
-
-    # Click GO
-    print("Move to mailbox")
-    go_button = driver.find_element(By.ID, "go-to-public")
-    go_button.click()
-
-    # Succeeded ?
-    try:
-        WebDriverWait(driver, 5).until(
-            EC.presence_of_element_located((By.ID, "inboxpane"))
-        )
-    except TimeoutException:
-        print("Failed to move to mailbox")
-        return False
-
-    time.sleep(1)
-    print("Done opening mailbox")
-
-    return True
-
+    
 
 def activate(driver, username):
     print("Activate Gmarket account")
@@ -100,36 +73,12 @@ def activate(driver, username):
     driver.get(f'https://YOPmail.com?{username}')
     # Wait for welcome email
     print("Wait for welcome email")
-    # email_row = WebDriverWait(driver, 180).until(
-    #     EC.presence_of_element_located(
-    #         (
-    #             By.PARTIAL_LINK_TEXT,
-    #             "[Gmarket] Welcome new Member! Please Confirm your E-mail",
-    #         )
-    #     )
-    # )
 
-    # Click on the email
-    # print("Open welcome email")
-    # email_row.click()
-
-    time.sleep(1)
-
-    # # Dismiss Cookie message if any
-    # cookie_got_it = find_element_no_except(driver, By.LINK_TEXT, "Got it!")
-    # if cookie_got_it:
-    #     print("Dismiss cookie banner")
-    #     cookie_got_it.click()
-
-    # time.sleep(1)
+    time.sleep(.1)
 
     # Switch to message body iframe
     print("Click on 'Verify your email address'")
     # driver.switch_to_frame("msg_body")
-
-    # wait until "//iframe[@id='ifmail']" exists and find element
-    
-    # frame = driver.find_element(By.XPATH,"//iframe[@id='ifmail']")
 
     frame = WebDriverWait(driver, 180).until(
         EC.presence_of_element_located(
@@ -140,14 +89,7 @@ def activate(driver, username):
         )
     )
 
-    # WebDriverWait(driver, 180).until(EC.frame_to_be_available_and_switch_to_it((By.XPATH,"//iframe[@id='ifmail']")))
     driver.switch_to.frame(frame)
-
-    # verify_button = WebDriverWait(driver, 180).until(EC.visibility_of_element_located((By.LINK_TEXT, "Verify your email address")))
-
-    # verify_button = WebDriverWait(driver, 180).until(
-    #         EC.presence_of_element_located((By.LINK_TEXT, "Verify your email address"))
-    #     )
 
     verify_button = driver.find_element(By.LINK_TEXT, "Verify your email address")
     if verify_button:
@@ -155,11 +97,11 @@ def activate(driver, username):
     else:
         print("Failed to find verify button")
         return False
-    time.sleep(1)
+    time.sleep(.1)
 
     driver.switch_to.default_content()
 
-    time.sleep(1)
+    time.sleep(.1)
     print("Done verifying email")
 
     return True
@@ -174,14 +116,14 @@ def coupon(driver, username, password):
         print("Remove preference popup layer")
         remove_element(driver, popup_layer)
 
-    time.sleep(1)
+    time.sleep(.1)
 
     # Switch to message body iframe
     print("Click on 'Sign In'")
     signin_button = driver.find_element(By.LINK_TEXT, "Sign In")
     signin_button.click()
 
-    time.sleep(1)
+    time.sleep(.1)
 
     # Fill username
     print("Fill username")
@@ -200,7 +142,7 @@ def coupon(driver, username, password):
     signin_button = driver.find_element(By.ID, "goCheckLogin")
     signin_button.click()
 
-    time.sleep(1)
+    time.sleep(.1)
 
     # Remove Preference popup again
     popup_layer = find_element_no_except(driver, By.ID, "GmktPopLayer")
@@ -213,7 +155,7 @@ def coupon(driver, username, password):
     membership_button = driver.find_element(By.LINK_TEXT, "Membership Zone")
     membership_button.click()
 
-    time.sleep(1)
+    time.sleep(.1)
 
     # Remove Preference popup again
     popup_layer = find_element_no_except(driver, By.ID, "modal_pop11_layer")
@@ -230,7 +172,7 @@ def coupon(driver, username, password):
     download_buttons = driver.find_elements(By.CLASS_NAME, "button__download")
     download_buttons[0].click()
 
-    time.sleep(1)
+    time.sleep(.1)
     print("Done receiving coupon")
 
     return True
@@ -280,7 +222,7 @@ def register(driver, username, email, password):
         check_popup_ok.click()
         driver.switch_to.default_content()
 
-        time.sleep(.01)
+        time.sleep(.1)
 
     # Agree all terms
     print("Agree all terms")
@@ -304,16 +246,17 @@ if __name__ == "__main__":
     parser = create_opt_parser()
     args = parser.parse_args()
 
+    # Sample command: python3 gmarket.py --username=username --password=password --start=1 --end=2
+
     username = args.username
     password = args.password
-    
+    start_index = args.start
+    end_index = args.end
+
+    assert start_index <= end_index, "Start index must be less than or equal to end index"
     cpu_count = multiprocessing.cpu_count()
 
-    # yopmail = create_web_driver(YOPMAIL_URL)
-    # gmarket_register = create_web_driver(GLOBAL_GMARKET_REGIS_URL)
-    # gmarket_coupon = create_web_driver(GLOBAL_GMARKET_HOME_URL)
-
-    list_username = [f'{username}{i:04d}' for i in range(100)]
+    list_username = [f'{username}{i:04d}' for i in range(start_index, end_index + 1)]
     print(list_username)
     q = Queue()
 
@@ -323,13 +266,10 @@ if __name__ == "__main__":
             email = username + "@yopmail.com"
 
             print("Register Username: %s" % username)
-            # print("Password: %s" % password)
-            # print("Email: %s" % email)
 
             try:
                 if (
                     register(driver, username, email, password)
-                    # activate(driver, username)
                 ):
                     print("All done")
             except Exception as ex:
@@ -341,28 +281,18 @@ if __name__ == "__main__":
     def get_handles_activate(q, driver):
         while True:
             username = q.get()
-            # username_test = f'{username}{i:04d}'
             email = username + "@yopmail.com"
 
-            # gmarket_register = create_web_driver(GLOBAL_GMARKET_REGIS_URL)
-            # yopmail = create_web_driver(f'{YOPMAIL_URL}?{username_test}')
-
             print("Activate Username: %s" % username)
-            # print("Password: %s" % password)
-            # print("Email: %s" % email)
 
             try:
                 if (
-                    # register(driver, username, email, password)
                     activate(driver, username)
-                    # and coupon(gmarket_coupon, username, password)
                 ):
                     print("All done")
             except Exception as ex:
                 print("Exception: %s" % ex)
                 
-            # gmarket_register_driver.quit()
-            # driver.get(YOPMAIL_URL)
             q.task_done()
 
     start = time.time()
@@ -396,5 +326,7 @@ if __name__ == "__main__":
     end = time.time()
     print("Exec time: %f" % (end - start))
 
-# indexing numpy array 2 conditions
-# https://stackoverflow.com/questions/42287586/indexing-numpy-array-2-conditions
+    sys.exit()
+
+
+    
